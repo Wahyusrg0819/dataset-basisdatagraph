@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="UTF-8">
+    <title>Simple graph with Taxonomy and Map</title>
+    <link rel="icon" href="../favicon.ico"/>
+    
+    <!-- Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- Import mapbox stylesheet -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.css' rel='stylesheet'/>
+    
+    <!-- Let browser know website is optimized for mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    
+    <!-- Add Popoto default CSS styles -->
+    <link rel="stylesheet" href="../node_modules/popoto/dist/popoto.min.css">
+    <link rel="stylesheet" href="../shared.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+            color: #f4f6f8;
+            background: linear-gradient(120deg, #232b1b 0%, #2e3138 100%);
+            margin: 0;
+            padding: 0;
+            font-size: 1.05rem;
+            letter-spacing: 0.01em;
+            line-height: 1.6;
+        }
+        
+        .ppt-toolbar {
+            background: #475fa6;
+            box-shadow: 0 2px 8px rgba(71, 95, 166, 0.09);
+            border-radius: 16px;
+            border: 1.5px solid #28345b;
+            position: relative;
+            z-index: 2;
+            transition: box-shadow 0.18s, border 0.18s, background 0.18s;
+            overflow: visible;
+            display: inline-block;
+            width: auto;
+            min-width: 0;
+        }
+
+        .ppt-toolbar button {
+            /*untuk menampilkan tool bar popoto */
+            background: linear-gradient(135deg, #46692a 60%, #6bb23c 100%);
+            box-shadow:
+                0 8px 32px rgba(56, 84, 22, 0.30),
+                0 2px 8px rgba(0,0,0,0.09),
+                inset 0 2px 0 #a5de6e;
+            border-radius: 24px 24px 32px 32px;
+            border: 2px solid #5a8e27;
+            backdrop-filter: blur(3px) saturate(1.2);
+            position: relative;
+            z-index: 2;
+            transition: box-shadow 0.23s, border 0.22s, background 0.22s;
+            overflow: visible;
+        }
+
+        .ppt-section-header {
+            font-size: 1.2rem;
+            color: #284165;
+            margin: 18px 0 14px 0;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.1px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(90deg, #e3eafc 65%, #d0e6f2 100%);
+            padding: 10px 22px 10px 16px;
+            border-left: 5px solid #226b9f;
+            border-radius: 14px 26px 26px 14px;
+            box-shadow: 0 2px 10px rgba(34, 107, 159, 0.12);
+            transition: 
+                background 0.22s,
+                color 0.18s,
+                border-left 0.18s,
+                box-shadow 0.17s;
+        }
+        .ppt-section-header:hover {
+            background: linear-gradient(90deg, #c9e7ff 65%, #b8d8f0 100%);
+            color: #12406a;
+            border-left: 5px solid #0e406c;
+            box-shadow: 0 6px 22px rgba(34,107,159,0.18);
+            cursor: pointer;
+        }
+
+        .ppt-svg-graph {
+            height: 100%; /* Fill grid cell height */
+            width: 100%;  /* Fill grid cell width */
+        }
+
+        .ppt-container-graph {
+            height: 600px;
+            display: grid;
+            grid-template-columns: 250px 1fr; /* As specified */
+            grid-template-rows: 1fr; /* Single row for current children */
+            grid-template-areas: 
+                "taxonomy graph"; /* Corrected for current children */
+            width: 100%; /* Full screen width */
+            margin: 20px 0; /* Vertical margin, no horizontal auto margin */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+
+        .ppt-container-query {
+            background: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
+            box-shadow: 0 4px 24px rgba(253, 160, 133, 0.19), 0 2px 8px rgba(246, 211, 101, 0.08);
+            border: 2px solid #b97b0f;
+            color: #312003;
+        }
+
+        .ppt-container-cypher {
+            background: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
+            box-shadow: 0 4px 24px rgba(253, 160, 133, 0.19), 0 2px 8px rgba(246, 211, 101, 0.08);
+            border: 2px solid #b97b0f;
+            color: #312003;
+        }
+        
+        .ppt-taxo-nav {
+            grid-area: taxonomy;
+            border-right: 1px solid #e8eaed;
+            background-color: #3a4255;
+            padding: 15px 0;
+            overflow-y: auto;
+            height: 600px;
+            box-shadow:
+                0 4px 24px rgba(58, 66, 85, 0.22),
+                2px 0 12px rgba(40, 44, 60, 0.13),
+                inset 0 1.5px 0 #8e99b2;
+            backdrop-filter: blur(1.5px);
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ppt-taxo-ul {
+            list-style: none;
+            margin: 0;
+            padding: 4px 12px;
+            background-color: #2e3138;
+            font-size: 15px;
+            color: #d6e3f7;
+        }
+
+        .ppt-taxo-li {
+            margin-bottom: 6px;
+            padding: 6px 18px;
+            transition: background-color 0.3s, color 0.3s;
+            border-radius: 7px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            min-height: 36px;
+            background-color: transparent;
+        }
+
+        .ppt-taxo-span {
+            margin-left: 13px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            color: #d6e3f7;
+        }
+
+        .ppt-taxo-li:hover, .ppt-taxo-li.active {
+            background-color: #354052;
+            color: #ffffff;
+        }
+        
+        #popoto-graph {
+            grid-area: graph;
+            border-bottom: 1px solid #e8eaed;
+        }
+        
+        #map-container {
+    grid-area: map;
+    position: relative;
+    height: 100%;
+    min-height: 400px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 16px;
+    transition: box-shadow 0.22s, transform 0.18s;
+    margin-top: 20px;
+}
+
+        .map {
+            width: 100%;
+            height: 90%;
+            min-height: 350px;
+        }
+
+        .mapboxgl-canvas {
+            width: 100vw;
+            max-width: 100%;
+            height: 100%;
+            background: #e7f8ea;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(70, 105, 42, 0.17), 0 2px 8px rgba(90, 190, 39, 0.11), 0 12px 36px 0 rgba(30, 40, 45, 0.09), 4px 8px 0 0 #5a8e27;
+            transition: box-shadow 0.22s, transform 0.18s;
+            outline: none;
+        }
+        
+        
+        
+        .section-title {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: 1.05rem;
+            color: #37501a;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.1px;
+            gap: 14px;
+            background: linear-gradient(90deg, #e7f6d5 65%, #cde4b5 100%);
+            padding: 10px 22px 10px 16px;
+            border-left: 5px solid #6bb23c;
+            border-radius: 14px 26px 26px 14px;
+            box-shadow: 0 2px 10px rgba(90, 190, 39, 0.09);
+            margin: 18px 0 14px 0;
+            width: fit-content;
+            max-width: 100%;
+        }
+        
+        /* Map marker styling */
+        .marker {
+            border: none;
+            cursor: pointer;
+            height: 36px;
+            width: 36px;
+            background-image: url(../factual/image/node/social/restaurant.png);
+            background-color: rgba(0, 0, 0, 0);
+            background-size: contain;
+            animation: bounce 2s infinite;
+        }
+        
+        .result-title {
+            cursor: pointer;
+            color: #2193b0;
+            font-weight: 500;
+        }
+
+        
+
+        .section-title-map {
+            width: 100vw;
+            max-width: 100%;
+            box-sizing: border-box;
+            font-size: 0.98rem;
+            color: #46692a;
+            margin: 18px 0 14px 0;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(90deg, #e7f6d5 65%, #cde4b5 100%);
+            padding: 9px 22px 9px 18px;
+            border-left: 5px solid #6bb23c;
+            border-radius: 14px 26px 26px 14px;
+            box-shadow: 0 2px 10px rgba(90, 190, 39, 0.08);
+        }
+        
+        /* Marker tweaks */
+        .mapboxgl-popup-close-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 26px;
+            height: 26px;
+            border: none;
+            background: linear-gradient(135deg, #6bb23c 60%, #46692a 100%);
+            color: #fff;
+            border-radius: 50%;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(71, 95, 166, 0.13);
+            transition: background 0.18s, color 0.18s, box-shadow 0.16s;
+            z-index: 10;
+            outline: none;
+        }
+        .mapboxgl-popup-close-button:hover,
+        .mapboxgl-popup-close-button:focus {
+            background: linear-gradient(135deg, #46692a 70%, #6bb23c 100%);
+            color: #fcffe6;
+            box-shadow: 0 4px 16px rgba(90, 190, 39, 0.18);
+        }
+
+        .mapboxgl-popup-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            font-family: 'Segoe UI', 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1.6;
+            padding: 20px 22px 16px 22px;
+            min-width: 180px;
+            max-width: 340px;
+            background: linear-gradient(135deg, #5e9448 68%, #89bf6e 100%);
+            color: #f6faf6;
+            border-radius: 14px;
+            border: 1.5px solid #32511c;
+            box-shadow:
+                0 4px 16px rgba(30,40,45,0.14),
+                0 1.5px 0 #8ecf6e;
+            transform: perspective(220px) rotateX(1.2deg) scale(0.99);
+            transition: box-shadow 0.16s, transform 0.20s;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: pre-line;
+            position: relative;
+            box-sizing: border-box;
+            gap: 10px;
+        }
+        
+        .mapboxgl-popup-content-wrapper {
+            padding: 1%;
+        }
+        
+        .mapboxgl-popup-content h3 {
+            background: #2193b0;
+            color: #010000;
+            margin: 0;
+            display: block;
+            padding: 10px;
+            border-radius: 3px 3px 0 0;
+            font-weight: 700;
+            margin-top: -15px;
+        }
+        
+        .mapboxgl-popup-content h4 {
+            margin: 0;
+            display: block;
+            padding: 10px;
+            font-weight: 400;
+        }
+        
+        #results-container {
+            display: flex;
+            flex-direction: column;
+            max-height: 600px;
+            height: 600px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        #popoto-results {
+            padding: 10px;
+        }
+        
+        .ppt-result {
+            background: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
+            box-shadow: 0 4px 24px rgba(253, 160, 133, 0.19), 0 2px 8px rgba(246, 211, 101, 0.08);
+            border: 2px solid #b97b0f;
+            color: #312003;
+        }
+
+    </style>
+</head>
+<body class="ppt-body">
+
+<section class="ppt-section-main">
+    <div class="ppt-section-header">
+        <span class="ppt-header-span">Restaurant and Rumah Makan Graph In Pekanbaru</span>
+    </div>
+    <div class="ppt-container-graph">
+        <div id="popoto-taxonomy" class="ppt-taxo-nav">
+            <!-- Taxonomy navigation will be generated here -->
+        </div>
+
+        <div id="popoto-graph">
+            <!-- Graph is generated here -->
+        </div>
+        
+    </div>
+    <!-- Moved query and cypher containers outside of ppt-container-graph -->
+    <div id="popoto-query" class="ppt-container-query">
+        <div class="section-title">Generated Query</div>
+        <!-- Query viewer is generated here -->
+    </div>
+    <div id="popoto-cypher" class="ppt-container-cypher">
+        <div class="section-title">Executable Cypher</div>
+        <!-- Cypher query viewer will be generated here -->
+    </div>
+    <!-- Moved map-container outside of ppt-container-graph -->
+    <div id="map-container">
+        <div class="section-title-map">Map View</div>
+        <div id="map" class="map"></div>
+        <div id="results-container">
+            <div id="popoto-results">
+                <!-- Results will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- Required scripts -->
+<script src="../shared.js" charset="utf-8"></script>
+<script src="../node_modules/d3/dist/d3.min.js" charset="utf-8"></script>
+<script src="../node_modules/neo4j-driver-lite/lib/browser/neo4j-lite-web.min.js" charset="utf-8"></script>
+<script src="../node_modules/popoto/dist/popoto.min.js" charset="utf-8"></script>
+<script src='https://api.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.js'></script>
+<script>
+
+    var driver = neo4j.driver(
+        "neo4j+s://3effa4bb.databases.neo4j.io",
+        neo4j.auth.basic("neo4j", "hbXCOJhXVAg-74XFppyQVcXhG_1IwP7O4GqeGdN0xVI"),
+    );
+
+    popoto.runner.DRIVER = driver
+
+    // Define the list of label provider to customize the graph behavior:
+    // Only two labels are used in Neo4j movie graph example: "Movie" and "Person"
+    popoto.provider.node.Provider = {
+        "Restaurant": {
+            "returnAttributes": ["title", "address", "city", "state", "postalCode", "phone", "website", "totalScore", "reviewsCount", "location_lat", "location_lng", "imageUrl", "url", "price", "description"],
+            "constraintAttribute": "title",
+            "displayResults": function (resultElement) {
+                resultElement
+                    .on("click", function (r) {
+                        // Fly to restaurant location when clicked
+                        if (r.attributes.location_lat && r.attributes.location_lng) {
+                            flyToLocation(r);
+                        }
+                    });
+                    
+                resultElement
+                    .append("span")
+                    .attr("class", "result-title")
+                    .text(function (d) {
+                        return d.attributes.title;
+                    });
+                    
+                resultElement
+                    .append("div")
+                    .text(function (d) {
+                        let infoText = '';
+                        if (d.attributes.address) infoText += d.attributes.address;
+                        if (d.attributes.city) infoText += (infoText ? ' · ' : '') + d.attributes.city;
+                        if (d.attributes.state) infoText += (infoText ? ' · ' : '') + d.attributes.state;
+                        if (d.attributes.phone) infoText += (infoText ? ' · ' : '') + d.attributes.phone;
+                        return infoText;
+                    });
+            }
+        },
+        "Category": {
+            "returnAttributes": ["name"],
+            "constraintAttribute": "name"
+        },
+        "OpeningHour": {
+            "returnAttributes": ["day", "hours"],
+            "constraintAttribute": "day"
+        }
+    };
+
+    // Enable the query viewer
+    popoto.queryviewer.CYPHER_DISPLAY = true;
+    popoto.queryviewer.QUERY_DISPLAYED = true;
+    
+    // Enable the cypher viewer
+    popoto.cypherviewer.HIDE = false;
+    
+    // Set results page size
+    popoto.result.RESULTS_PAGE_SIZE = 15;
+    popoto.query.MAX_RESULTS_COUNT = 2000;
+    
+    // Initialize Mapbox
+    mapboxgl.accessToken = 'pk.eyJ1IjoicG90YXRvdGFydSIsImEiOiJjamU3NXM1bTUwOGRqMnBvNWkzdjByNWV0In0.2NMoyG2zRd8X8BMQht_gAg';
+    
+    var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v10',
+        center: [-74.0066, 40.7135],
+        zoom: 10,
+        pitch: 45,
+        bearing: -17.6
+    });
+    
+    // Add zoom and rotation controls to the map
+    map.addControl(new mapboxgl.NavigationControl());
+    
+    map.on('load', function() {
+        // Add 3D buildings layer
+        var layers = map.getStyle().layers;
+        
+        var labelLayerId;
+        for (var i = 0; i < layers.length; i++) {
+            if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+                labelLayerId = layers[i].id;
+                break;
+            }
+        }
+        
+        map.addLayer({
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': [
+                    "interpolate", ["linear"], ["zoom"],
+                    15, 0,
+                    15.05, ["get", "height"]
+                ],
+                'fill-extrusion-base': [
+                    "interpolate", ["linear"], ["zoom"],
+                    15, 0,
+                    15.05, ["get", "min_height"]
+                ],
+                'fill-extrusion-opacity': .6
+            }
+        }, labelLayerId);
+        
+        // Add empty GeoJSON source for results
+        map.addSource('results', {
+            type: 'geojson', 
+            data: {
+                "type": "FeatureCollection",
+                "features": []
+            }
+        });
+        
+        // Establish database connection and start Popoto
+        driver.verifyConnectivity().then(function () {
+            // Start the generation using parameter as root label of the query
+            popoto.start("Restaurant");
+        }).catch(function (error) {
+            document.getElementById("modal").style.display = "block";
+            document.getElementById("error-content").innerText = error;
+            console.error(error);
+        });
+    });
+    
+    /**
+     * Add a listener on result received to update map
+     */
+    popoto.result.onResultReceived(
+        function (resultObjects) {
+            var geojson = createGeojson(resultObjects);
+            if (map.getSource('results')) {
+                map.getSource('results').setData(geojson);
+            }
+            
+            // Remove existing markers
+            d3.selectAll(".marker").remove();
+            
+            // Add new markers
+            geojson.features.forEach(function (marker, i) {
+                // Create marker element
+                var el = document.createElement('div');
+                el.id = "marker-" + i;
+                el.className = 'marker';
+                
+                // Add marker to map
+                new mapboxgl.Marker(el, {offset: [0, -18]})
+                    .setLngLat(marker.geometry.coordinates)
+                    .addTo(map);
+                
+                // Add click event for popup
+                el.addEventListener('click', function (e) {
+                    // Fly to the point
+                    flyToStore(marker);
+                    
+                    // Show popup
+                    createPopUp(marker);
+                    
+                    e.stopPropagation();
+                });
+            });
+            
+            // Fit map to results bounds if there are results
+            if (geojson.features.length > 0) {
+                map.fitBounds(computeBounds(geojson), {
+                    padding: 40
+                });
+            }
+        }
+    );
+    
+    /**
+     * Fly to a specific location
+     */
+    function flyToLocation(result) {
+        if (result.attributes.location_lat && result.attributes.location_lng) {
+            map.flyTo({
+                center: [Number(result.attributes.location_lng), Number(result.attributes.location_lat)],
+                zoom: 15.5
+            });
+            
+            // Create a popup for this location
+            createPopUpForResult(result);
+        }
+    }
+    
+    /**
+     * Fly to a store location from map marker
+     */
+    function flyToStore(currentFeature) {
+        map.flyTo({
+            center: currentFeature.geometry.coordinates,
+            zoom: 15.5
+        });
+    }
+    
+    /**
+     * Create a popup for a map feature
+     */
+    function createPopUp(currentFeature) {
+        var popUps = document.getElementsByClassName('mapboxgl-popup');
+        // Check if there is already a popup on the map and if so, remove it
+        if (popUps[0]) popUps[0].remove();
+        
+        var popup = new mapboxgl.Popup({closeOnClick: false})
+            .setLngLat(currentFeature.geometry.coordinates)
+            .setHTML('<h3>' + currentFeature.properties.name + '</h3>' +
+                '<h4>' + currentFeature.properties.address + '</h4>')
+            .addTo(map);
+    }
+    
+    /**
+     * Create a popup for a result object
+     */
+    function createPopUpForResult(result) {
+        var popUps = document.getElementsByClassName('mapboxgl-popup');
+        // Check if there is already a popup on the map and if so, remove it
+        if (popUps[0]) popUps[0].remove();
+        
+        var popup = new mapboxgl.Popup({closeOnClick: false})
+            .setLngLat([Number(result.attributes.location_lng), Number(result.attributes.location_lat)])
+            .setHTML('<h3>' + result.attributes.title + '</h3>' +
+                '<h4>' + (result.attributes.address || '') + '</h4>')
+            .addTo(map);
+    }
+    
+    /**
+     * Compute bounds for a GeoJSON object
+     */
+    function computeBounds(geojson) {
+        // Ensure there are features
+        if (!geojson.features.length) {
+            return new mapboxgl.LngLatBounds([-180, -90], [180, 90]);
+        }
+        
+        // Extract coordinates
+        var coordinates = geojson.features.map(function (feature) {
+            return feature.geometry.coordinates;
+        });
+        
+        // Calculate bounds
+        return coordinates.reduce(function (bounds, coord) {
+            return bounds.extend(coord);
+        }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+    }
+    
+    /**
+     * Create a GeoJSON object from result objects
+     */
+    function createGeojson(resultObjects) {
+        var features = [];
+        
+        for (var i = 0; i < resultObjects.length; i++) {
+            var longitude = Number(resultObjects[i].attributes.location_lng);
+            var latitude = Number(resultObjects[i].attributes.location_lat);
+            
+            if (longitude && latitude) {
+                features.push({
+                    "resultObject": resultObjects[i],
+                    "type": "Feature",
+                    properties: {
+                        "name": resultObjects[i].attributes.title,
+                        "address": resultObjects[i].attributes.address,
+                        "city": resultObjects[i].attributes.city,
+                        "state": resultObjects[i].attributes.state,
+                        "phone": resultObjects[i].attributes.phone
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [
+                            longitude,
+                            latitude
+                        ]
+                    }
+                })
+            }
+        }
+        
+        return {
+            "type": "FeatureCollection",
+            "features": features
+        };
+    }
+
+</script>
+</body>
+</html>
